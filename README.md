@@ -8,5 +8,5 @@
 * Features: Login, Dashboard, Leave Application, Approval System
 * Tech Stack: HTML, CSS, JavaScript
 
-🔗 Live Demo: https://gchetankumar.github.io/employee-leave-management-system
-🔗 GitHub Repo: https://github.com/gchetankumar/employee-leave-management-system
+🔗 Live Demo: https://GCHETANKUMAR.github.io/employee-leave-management-system
+🔗 GitHub Repo: https://github.com/GCHETANKUMAR/employee-leave-management-system
