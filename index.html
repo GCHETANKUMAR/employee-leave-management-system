@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeaveFlow — Employee Leave Management</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #1a56db; --primary-light: #e8f0fe; --primary-dark: #1240a8;
+    --success: #0a7c42; --success-light: #e6f4ed;
+    --danger: #c0392b; --danger-light: #fdecea;
+    --warning: #b45309; --warning-light: #fef3cd;
+    --bg: #f4f6fb; --surface: #ffffff; --border: #e2e8f0;
+    --text: #1a202c; --muted: #64748b;
+    --sidebar-bg: #0f172a; --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+    --sidebar-w: 240px;
+    --topbar-h: 60px;
+    --bottom-nav-h: 64px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+  /* ═══════════════════════════════════
+     SIDEBAR (desktop)
+  ═══════════════════════════════════ */
+  .sidebar {
+    width: var(--sidebar-w); background: var(--sidebar-bg);
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 300;
+    display: flex; flex-direction: column;
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    will-change: transform;
+  }
+  .sidebar-logo {
+    padding: 22px 20px 18px;
+    font-family: 'DM Serif Display', serif; font-size: 22px; color: #fff;
+    border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sidebar-logo span { color: #60a5fa; }
+  .sidebar-close { display: none; background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; padding: 4px; }
+  .sidebar-nav { padding: 14px 10px; flex: 1; overflow-y: auto; }
+  .nav-section { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: #475569; padding: 12px 10px 6px; font-weight: 600; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
+    color: #94a3b8; cursor: pointer; font-size: 14px; font-weight: 400;
+    margin-bottom: 2px; transition: background .15s, color .15s; user-select: none;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.06); color: #cbd5e1; }
+  .nav-item.active { background: rgba(26,86,219,0.25); color: #93c5fd; font-weight: 500; }
+  .nav-icon { width: 18px; height: 18px; opacity: 0.8; flex-shrink: 0; }
+  .sidebar-user {
+    padding: 14px 16px; border-top: 1px solid rgba(255,255,255,0.07);
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  }
+  .user-avatar {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: #fff; flex-shrink: 0;
+  }
+  .user-info { flex: 1; min-width: 0; }
+  .user-name { font-size: 13px; font-weight: 500; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-role-txt { font-size: 11px; color: #64748b; }
+  .role-badge { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 600; background: rgba(26,86,219,0.2); color: #60a5fa; white-space: nowrap; }
+
+  /* Sidebar overlay (mobile) */
+  .sidebar-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    z-index: 290; backdrop-filter: blur(2px);
+  }
+  .sidebar-overlay.show { display: block; }
+
+  /* ═══════════════════════════════════
+     MAIN WRAPPER
+  ═══════════════════════════════════ */
+  .main { margin-left: var(--sidebar-w); min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* ═══════════════════════════════════
+     TOPBAR
+  ═══════════════════════════════════ */
+  .topbar {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 0 24px; height: var(--topbar-h); display: flex; align-items: center;
+    justify-content: space-between; position: sticky; top: 0; z-index: 200;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .hamburger {
+    display: none; background: none; border: none; cursor: pointer;
+    padding: 6px; border-radius: 6px; color: var(--text);
+  }
+  .hamburger:hover { background: var(--bg); }
+  .hamburger svg { width: 22px; height: 22px; display: block; }
+  .topbar-title { font-size: 17px; font-weight: 600; }
+  .topbar-actions { display: flex; align-items: center; gap: 10px; }
+
+  /* ═══════════════════════════════════
+     BUTTONS
+  ═══════════════════════════════════ */
+  .btn {
+    padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 500;
+    cursor: pointer; border: none; transition: all .18s; font-family: 'DM Sans', sans-serif;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-outline { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+  .btn-outline:hover { background: var(--primary-light); }
+  .btn-sm { padding: 6px 13px; font-size: 13px; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-success { background: var(--success); color: #fff; }
+
+  /* ═══════════════════════════════════
+     PAGE CONTENT
+  ═══════════════════════════════════ */
+  .page { display: none; padding: 24px; flex: 1; }
+  .page.active { display: block; animation: fadeUp .22s ease; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ═══════════════════════════════════
+     STAT CARDS
+  ═══════════════════════════════════ */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px; margin-bottom: 22px;
+  }
+  .stat-card {
+    background: var(--surface); border-radius: var(--radius); padding: 18px 20px;
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+  }
+  .stat-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; font-size: 17px; }
+  .stat-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .stat-value { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 5px; }
+
+  /* ═══════════════════════════════════
+     CARDS
+  ═══════════════════════════════════ */
+  .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); overflow: hidden; }
+  .card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .card-title { font-size: 15px; font-weight: 600; }
+  .card-body { padding: 18px 20px; }
+
+  /* ═══════════════════════════════════
+     GRIDS
+  ═══════════════════════════════════ */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+
+  /* ═══════════════════════════════════
+     TABLES
+  ═══════════════════════════════════ */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 480px; }
+  th { text-align: left; padding: 11px 14px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); border-bottom: 1px solid var(--border); background: #f8fafc; white-space: nowrap; }
+  td { padding: 13px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+  .avatar-sm { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #fff; margin-right: 8px; flex-shrink: 0; }
+  .emp-cell { display: flex; align-items: center; }
+
+  /* ═══════════════════════════════════
+     BADGES
+  ═══════════════════════════════════ */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .badge-pending { background: var(--warning-light); color: var(--warning); }
+  .badge-approved { background: var(--success-light); color: var(--success); }
+  .badge-rejected { background: var(--danger-light); color: var(--danger); }
+  .badge-cancelled { background: #f1f5f9; color: #64748b; }
+  .badge-info { background: var(--primary-light); color: var(--primary); }
+  .leave-type { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+  .leave-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ═══════════════════════════════════
+     FORMS
+  ═══════════════════════════════════ */
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text); }
+  input[type=text], input[type=date], input[type=email], input[type=password], select, textarea {
+    width: 100%; padding: 10px 13px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--text);
+    background: var(--surface); outline: none; transition: border .2s, box-shadow .2s;
+    -webkit-appearance: none; appearance: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,86,219,0.1); }
+  textarea { resize: vertical; min-height: 88px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-error { font-size: 12px; color: var(--danger); margin-top: 4px; display: none; }
+  select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+
+  /* ═══════════════════════════════════
+     BALANCE BARS
+  ═══════════════════════════════════ */
+  .balance-item { margin-bottom: 18px; }
+  .balance-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px; }
+  .balance-name { font-size: 14px; font-weight: 500; }
+  .balance-nums { font-size: 13px; color: var(--muted); }
+  .balance-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .balance-fill { height: 100%; border-radius: 4px; transition: width .6s ease; }
+
+  /* ═══════════════════════════════════
+     CALENDAR
+  ═══════════════════════════════════ */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-header { text-align: center; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--muted); padding: 8px 0; }
+  .cal-day {
+    aspect-ratio: 1; border-radius: 6px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-size: 12px;
+    cursor: pointer; transition: background .15s; position: relative;
+  }
+  .cal-day:hover { background: var(--primary-light); }
+  .cal-day.other-month { color: #d1d5db; }
+  .cal-day.today { background: var(--primary); color: #fff; font-weight: 700; }
+  .cal-day.on-leave.approved { background: var(--success-light); color: var(--success); }
+  .cal-day.on-leave.pending { background: var(--warning-light); color: var(--warning); }
+  .cal-day .dot { width: 4px; height: 4px; border-radius: 50%; position: absolute; bottom: 3px; }
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .cal-month { font-size: 15px; font-weight: 600; }
+  .cal-btn { background: none; border: 1px solid var(--border); border-radius: 6px; width: 30px; height: 30px; cursor: pointer; font-size: 15px; color: var(--muted); display: flex; align-items: center; justify-content: center; }
+  .cal-btn:hover { background: var(--bg); }
+  .cal-legend { margin-top: 14px; display: flex; gap: 14px; flex-wrap: wrap; }
+  .cal-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .cal-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ═══════════════════════════════════
+     MODAL
+  ═══════════════════════════════════ */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 500;
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--surface); border-radius: 16px; width: 100%; max-width: 520px;
+    box-shadow: var(--shadow-md); transform: translateY(16px); transition: transform .22s;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-header { padding: 20px 22px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-size: 16px; font-weight: 600; }
+  .modal-close { background: none; border: none; cursor: pointer; font-size: 22px; color: var(--muted); line-height: 1; padding: 0 4px; }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 20px 22px; }
+  .modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+
+  /* ═══════════════════════════════════
+     TOAST
+  ═══════════════════════════════════ */
+  .toast {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+    z-index: 600; background: #0f172a; color: #fff; padding: 12px 20px; border-radius: 10px;
+    font-size: 14px; box-shadow: var(--shadow-md); white-space: nowrap;
+    display: flex; align-items: center; gap: 8px;
+    opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ═══════════════════════════════════
+     LOGIN PAGE
+  ═══════════════════════════════════ */
+  .login-wrap {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); padding: 20px;
+  }
+  .login-card {
+    background: #fff; border-radius: 20px; padding: 36px 32px; width: 100%; max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .login-logo { font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--primary); margin-bottom: 4px; }
+  .login-sub { font-size: 14px; color: var(--muted); margin-bottom: 28px; }
+  .login-demo { margin-top: 18px; padding: 12px; background: #f8fafc; border-radius: 8px; font-size: 12px; color: var(--muted); line-height: 1.7; }
+  .login-demo strong { color: var(--text); display: block; margin-bottom: 2px; }
+  .role-select { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .role-btn { padding: 12px; border: 2px solid var(--border); border-radius: 10px; cursor: pointer; text-align: center; transition: all .2s; background: transparent; font-family: 'DM Sans', sans-serif; }
+  .role-btn.active { border-color: var(--primary); background: var(--primary-light); }
+  .role-btn .role-icon { font-size: 20px; display: block; margin-bottom: 4px; }
+  .role-btn .role-label { font-size: 13px; font-weight: 500; color: var(--text); }
+
+  /* ═══════════════════════════════════
+     CHIPS / FILTER
+  ═══════════════════════════════════ */
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px;
+    border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer;
+    border: 1.5px solid var(--border); background: transparent; color: var(--muted);
+    transition: all .18s; white-space: nowrap;
+  }
+  .chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+
+  /* ═══════════════════════════════════
+     ACTIVITY FEED
+  ═══════════════════════════════════ */
+  .activity-item { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-icon { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .activity-content { flex: 1; min-width: 0; }
+  .activity-text { font-size: 13px; line-height: 1.5; }
+  .activity-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ═══════════════════════════════════
+     EMPTY STATE
+  ═══════════════════════════════════ */
+  .empty-state { text-align: center; padding: 40px 16px; color: var(--muted); }
+  .empty-state .empty-icon { font-size: 36px; margin-bottom: 10px; opacity: 0.4; }
+  .empty-state p { font-size: 14px; }
+
+  /* ═══════════════════════════════════
+     BOTTOM NAV (mobile only)
+  ═══════════════════════════════════ */
+  .bottom-nav {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 250;
+    background: var(--surface); border-top: 1px solid var(--border);
+    height: var(--bottom-nav-h); padding: 0 4px;
+    grid-template-columns: repeat(5, 1fr);
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+  }
+  .bn-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; cursor: pointer; padding: 8px 4px; position: relative;
+    color: var(--muted); transition: color .18s; border: none; background: none;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .bn-item.active { color: var(--primary); }
+  .bn-item svg { width: 20px; height: 20px; }
+  .bn-label { font-size: 10px; font-weight: 500; }
+  .bn-badge { position: absolute; top: 6px; right: 16px; background: #ef4444; color: #fff; border-radius: 20px; font-size: 9px; padding: 1px 5px; font-weight: 700; display: none; }
+
+  /* ═══════════════════════════════════
+     RESPONSIVE BREAKPOINTS
+  ═══════════════════════════════════ */
+
+  /* Tablet — ≤ 1024px */
+  @media (max-width: 1024px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* Mobile — ≤ 768px */
+  @media (max-width: 768px) {
+    :root { --topbar-h: 56px; }
+
+    /* Hide desktop sidebar, show hamburger */
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-close { display: block; }
+    .hamburger { display: flex; }
+
+    /* Adjust main */
+    .main { margin-left: 0; padding-bottom: var(--bottom-nav-h); }
+    .page { padding: 16px; }
+    .topbar { padding: 0 16px; }
+
+    /* Show bottom nav */
+    .bottom-nav { display: grid; }
+
+    /* Collapse grids */
+    .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+
+    /* Form rows collapse */
+    .form-row { grid-template-columns: 1fr; gap: 0; }
+
+    /* Hide topbar apply btn on mobile (bottom nav has it) */
+    .topbar-apply-btn { display: none; }
+
+    /* Stat cards smaller */
+    .stat-card { padding: 14px 16px; }
+    .stat-value { font-size: 24px; }
+    .stat-icon { width: 32px; height: 32px; font-size: 15px; margin-bottom: 8px; }
+
+    /* Card header stack */
+    .card-header { flex-direction: column; align-items: flex-start; }
+
+    /* Toast at bottom above nav */
+    .toast { bottom: calc(var(--bottom-nav-h) + 12px); }
+
+    /* Modal full width */
+    .modal { border-radius: 14px 14px 0 0; max-height: 80vh; }
+    .modal-overlay { align-items: flex-end; padding: 0; }
+
+    /* Table responsive label trick */
+    .hide-mobile { display: none; }
+  }
+
+  /* Extra small — ≤ 400px */
+  @media (max-width: 400px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .login-card { padding: 28px 20px; }
+    .role-select { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* Desktop-only utilities */
+  @media (min-width: 769px) {
+    .mobile-only { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ LOGIN PAGE ═══════════════ -->
+<div id="loginPage" class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">Leave<span style="color:#60a5fa">Flow</span></div>
+    <div class="login-sub">Employee Leave Management System</div>
+    <div class="form-group">
+      <label>Sign in as</label>
+      <div class="role-select">
+        <button class="role-btn active" onclick="selectRole('employee',this)">
+          <span class="role-icon">👤</span><span class="role-label">Employee</span>
+        </button>
+        <button class="role-btn" onclick="selectRole('manager',this)">
+          <span class="role-icon">👔</span><span class="role-label">Manager</span>
+        </button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@company.com" value="john.doe@company.com">
+      <div class="form-error" id="emailErr">Please enter a valid email</div>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Enter password" value="password123">
+      <div class="form-error" id="passErr">Password is required</div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:12px;font-size:15px;justify-content:center;" onclick="doLogin()">Sign In</button>
+    <div class="login-demo">
+      <strong>Demo accounts</strong>
+      Employee: john.doe@company.com / password123<br>
+      Manager: sarah.manager@company.com / manager123
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ APP SHELL ═══════════════ -->
+<div id="app" style="display:none;">
+
+  <!-- Sidebar overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      Leave<span>Flow</span>
+      <button class="sidebar-close" onclick="closeSidebar()">✕</button>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item active" onclick="navTo('dashboard',this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" onclick="navTo('myLeaves',this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        My Leaves
+      </div>
+      <div class="nav-item" onclick="navTo('applyLeave',this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Apply Leave
+      </div>
+      <div class="nav-item" onclick="navTo('calendar',this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Leave Calendar
+      </div>
+      <div class="nav-item" onclick="navTo('balances',this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Leave Balances
+      </div>
+      <div class="nav-item" id="navApprovals" style="display:none" onclick="navTo('approvals',this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Approvals
+        <span id="pendingBadgeSide" style="background:#ef4444;color:#fff;border-radius:20px;font-size:10px;padding:1px 6px;margin-left:auto;display:none;"></span>
+      </div>
+      <div class="nav-section">Account</div>
+      <div class="nav-item" onclick="doLogout()">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Logout
+      </div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebarAvatar">JD</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebarName">John Doe</div>
+        <div class="user-role-txt" id="sidebarRole">Employee</div>
+      </div>
+      <span class="role-badge" id="sidebarBadge">EMP</span>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" onclick="openSidebar()" aria-label="Open menu">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="topbar-title" id="pageTitle">Dashboard</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm topbar-apply-btn" onclick="navTo('applyLeave', document.querySelector('#sidebar .nav-item:nth-child(4)'))">+ Apply Leave</button>
+      </div>
+    </div>
+
+    <!-- ─── DASHBOARD ─── -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#e8f0fe;">📅</div>
+          <div class="stat-label">Total Leaves</div>
+          <div class="stat-value" id="statTotal">0</div>
+          <div class="stat-sub">This year</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#e6f4ed;">✅</div>
+          <div class="stat-label">Approved</div>
+          <div class="stat-value" id="statApproved" style="color:var(--success)">0</div>
+          <div class="stat-sub">Confirmed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#fef3cd;">⏳</div>
+          <div class="stat-label">Pending</div>
+          <div class="stat-value" id="statPending" style="color:var(--warning)">0</div>
+          <div class="stat-sub">Awaiting</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#e8f0fe;">🏖️</div>
+          <div class="stat-label">Vacation Left</div>
+          <div class="stat-value" id="statBalance" style="color:var(--primary)">0</div>
+          <div class="stat-sub">Days remaining</div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Recent Requests</div></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Type</th><th>Dates</th><th>Status</th></tr></thead>
+            <tbody id="dashRecentBody"></tbody></table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Recent Activity</div></div>
+          <div class="card-body" id="activityFeed"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── MY LEAVES ─── -->
+    <div class="page" id="page-myLeaves">
+      <div class="filter-row">
+        <button class="chip active" onclick="filterLeaves('all',this)">All</button>
+        <button class="chip" onclick="filterLeaves('Approved',this)">Approved</button>
+        <button class="chip" onclick="filterLeaves('Pending',this)">Pending</button>
+        <button class="chip" onclick="filterLeaves('Rejected',this)">Rejected</button>
+        <button class="btn btn-primary btn-sm mobile-only" style="margin-left:auto;" onclick="navTo('applyLeave',null)">+ Apply</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Type</th><th class="hide-mobile">Start</th><th class="hide-mobile">End</th><th>Days</th><th class="hide-mobile">Reason</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="myLeavesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── APPLY LEAVE ─── -->
+    <div class="page" id="page-applyLeave">
+      <div style="max-width:580px;">
+        <div class="card">
+          <div class="card-header"><div class="card-title">New Leave Request</div></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label>Leave Type *</label>
+              <select id="leaveType">
+                <option value="">Select leave type</option>
+                <option value="Vacation">🏖️ Vacation</option>
+                <option value="Sick Leave">🤒 Sick Leave</option>
+                <option value="Personal">👤 Personal</option>
+                <option value="Maternity/Paternity">👶 Maternity / Paternity</option>
+                <option value="Emergency">🚨 Emergency</option>
+              </select>
+              <div class="form-error" id="typeErr">Please select a leave type</div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Start Date *</label>
+                <input type="date" id="startDate">
+                <div class="form-error" id="startErr">Required</div>
+              </div>
+              <div class="form-group">
+                <label>End Date *</label>
+                <input type="date" id="endDate">
+                <div class="form-error" id="endErr">Must be ≥ start date</div>
+              </div>
+            </div>
+            <div id="daysPreview" style="display:none;margin-bottom:14px;">
+              <div style="background:var(--primary-light);border-radius:8px;padding:10px 14px;font-size:14px;color:var(--primary);font-weight:500;">
+                📅 Duration: <span id="daysCount">0</span> working day(s)
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Reason *</label>
+              <textarea id="leaveReason" placeholder="Briefly describe the reason for your leave..."></textarea>
+              <div class="form-error" id="reasonErr">Please provide a reason</div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+              <button class="btn btn-outline" onclick="resetForm()">Reset</button>
+              <button class="btn btn-primary" onclick="submitLeave()">Submit Request</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── CALENDAR ─── -->
+    <div class="page" id="page-calendar">
+      <div class="grid-2" style="align-items:start;">
+        <div class="card">
+          <div class="card-body">
+            <div class="cal-nav">
+              <button class="cal-btn" onclick="changeMonth(-1)">&#8249;</button>
+              <div class="cal-month" id="calMonthLabel"></div>
+              <button class="cal-btn" onclick="changeMonth(1)">&#8250;</button>
+            </div>
+            <div class="cal-grid" id="calGrid"></div>
+            <div class="cal-legend">
+              <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--primary);"></div>Today</div>
+              <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--success);"></div>Approved</div>
+              <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--warning);"></div>Pending</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">On Leave This Month</div></div>
+          <div id="teamLeaveList" style="padding:0;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── BALANCES ─── -->
+    <div class="page" id="page-balances">
+      <div class="grid-2" style="align-items:start;">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Your Leave Balances</div></div>
+          <div class="card-body" id="balancesBody"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Leave Policy</div></div>
+          <div class="card-body">
+            <div style="border-left:3px solid var(--primary);padding:10px 14px;margin-bottom:12px;background:var(--primary-light);border-radius:0 8px 8px 0;">
+              <div style="font-weight:600;font-size:14px;margin-bottom:4px;">🏖️ Vacation</div>
+              <div style="font-size:13px;color:var(--muted);">21 days/year · carry over max 5 · 2 weeks notice</div>
+            </div>
+            <div style="border-left:3px solid #ef4444;padding:10px 14px;margin-bottom:12px;background:#fdecea;border-radius:0 8px 8px 0;">
+              <div style="font-weight:600;font-size:14px;margin-bottom:4px;">🤒 Sick Leave</div>
+              <div style="font-size:13px;color:var(--muted);">12 days/year · certificate after 3 days · no carryover</div>
+            </div>
+            <div style="border-left:3px solid #7c3aed;padding:10px 14px;margin-bottom:12px;background:#eef2ff;border-radius:0 8px 8px 0;">
+              <div style="font-weight:600;font-size:14px;margin-bottom:4px;">👤 Personal</div>
+              <div style="font-size:13px;color:var(--muted);">5 days/year · 24-hour notice required</div>
+            </div>
+            <div style="border-left:3px solid #10b981;padding:10px 14px;background:#e6f4ed;border-radius:0 8px 8px 0;">
+              <div style="font-weight:600;font-size:14px;margin-bottom:4px;">👶 Maternity/Paternity</div>
+              <div style="font-size:13px;color:var(--muted);">90 days maternity · 14 days paternity · HR approval</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── APPROVALS (manager) ─── -->
+    <div class="page" id="page-approvals">
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-header">
+          <div class="card-title">Pending Requests</div>
+          <span id="approvalCount" class="badge badge-pending"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Employee</th><th>Type</th><th>Duration</th><th class="hide-mobile">Days</th><th class="hide-mobile">Reason</th><th>Actions</th></tr></thead>
+            <tbody id="approvalsBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">All Leave Requests</div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Employee</th><th>Type</th><th class="hide-mobile">Start</th><th class="hide-mobile">End</th><th>Status</th><th class="hide-mobile">Comment</th></tr></thead>
+            <tbody id="allRequestsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main><!-- /main -->
+
+  <!-- ─── BOTTOM NAV (mobile) ─── -->
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="bn-item active" id="bn-dashboard" onclick="navTo('dashboard',null);bnActive('bn-dashboard')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      <span class="bn-label">Home</span>
+    </button>
+    <button class="bn-item" id="bn-myLeaves" onclick="navTo('myLeaves',null);bnActive('bn-myLeaves')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg>
+      <span class="bn-label">My Leaves</span>
+    </button>
+    <button class="bn-item" id="bn-applyLeave" onclick="navTo('applyLeave',null);bnActive('bn-applyLeave')" style="color:var(--primary);">
+      <div style="width:44px;height:44px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:0;box-shadow:0 4px 12px rgba(26,86,219,0.35);">
+        <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#fff"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+      </div>
+    </button>
+    <button class="bn-item" id="bn-calendar" onclick="navTo('calendar',null);bnActive('bn-calendar')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      <span class="bn-label">Calendar</span>
+    </button>
+    <button class="bn-item" id="bn-balances" onclick="navTo('balances',null);bnActive('bn-balances')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      <span class="bn-label">Balance</span>
+    </button>
+  </nav>
+
+</div><!-- /app -->
+
+<!-- ─── REVIEW MODAL ─── -->
+<div class="modal-overlay" id="actionModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Review Leave Request</div>
+      <button class="modal-close" onclick="closeModal('actionModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="actionModalInfo" style="background:var(--bg);border-radius:8px;padding:14px;margin-bottom:16px;font-size:14px;"></div>
+      <div class="form-group">
+        <label>Manager Comment (optional)</label>
+        <textarea id="managerComment" placeholder="Add a note for the employee..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline btn-sm" onclick="closeModal('actionModal')">Cancel</button>
+      <button class="btn btn-danger btn-sm" onclick="processAction('Rejected')">Reject</button>
+      <button class="btn btn-success btn-sm" onclick="processAction('Approved')">Approve</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span id="toastIcon">✅</span>
+  <span id="toastMsg">Done!</span>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════
+const USERS = {
+  'john.doe@company.com':      { password:'password123', role:'employee', name:'John Doe',    dept:'Engineering', avatar:'JD' },
+  'sarah.manager@company.com': { password:'manager123',  role:'manager',  name:'Sarah Chen',  dept:'HR',          avatar:'SC' }
+};
+const EMPLOYEES = [
+  {id:1,name:'John Doe',    avatar:'JD',color:'#1a56db'},
+  {id:2,name:'Alice Smith', avatar:'AS',color:'#7c3aed'},
+  {id:3,name:'Bob Johnson', avatar:'BJ',color:'#059669'},
+  {id:4,name:'Carol White', avatar:'CW',color:'#d97706'},
+  {id:5,name:'David Lee',   avatar:'DL',color:'#dc2626'},
+];
+const LEAVE_BALANCES = {
+  'Vacation':  {total:21,used:7},
+  'Sick Leave':{total:12,used:3},
+  'Personal':  {total:5, used:1},
+  'Emergency': {total:3, used:0}
+};
+let leaveRequests = [
+  {id:1,empId:1,empName:'John Doe',  type:'Vacation',  start:'2025-03-10',end:'2025-03-14',days:5,reason:'Family vacation',          status:'Approved', comment:'Enjoy!',                  created:'2025-02-28'},
+  {id:2,empId:1,empName:'John Doe',  type:'Sick Leave',start:'2025-04-02',end:'2025-04-03',days:2,reason:'Fever and cold',            status:'Approved', comment:'Get well soon!',           created:'2025-04-02'},
+  {id:3,empId:2,empName:'Alice Smith',type:'Personal', start:'2025-04-07',end:'2025-04-07',days:1,reason:'Personal errands',          status:'Pending',  comment:'',                         created:'2025-04-05'},
+  {id:4,empId:3,empName:'Bob Johnson',type:'Vacation', start:'2025-04-15',end:'2025-04-18',days:4,reason:'Anniversary trip',          status:'Pending',  comment:'',                         created:'2025-04-06'},
+  {id:5,empId:1,empName:'John Doe',  type:'Personal',  start:'2025-05-01',end:'2025-05-01',days:1,reason:'Bank work',                 status:'Pending',  comment:'',                         created:'2025-04-08'},
+  {id:6,empId:4,empName:'Carol White',type:'Sick Leave',start:'2025-03-20',end:'2025-03-22',days:3,reason:'Medical procedure',        status:'Approved', comment:'',                         created:'2025-03-18'},
+  {id:7,empId:5,empName:'David Lee', type:'Vacation',  start:'2025-04-20',end:'2025-04-25',days:6,reason:'International trip',        status:'Rejected', comment:'Project deadline conflict', created:'2025-04-01'},
+];
+let nextId = 8, currentUser = null, selectedRole = 'employee';
+let calendarDate = new Date(), filterStatus = 'all', pendingActionId = null;
+
+// ════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════
+function fmtDate(d){ if(!d)return''; const[y,m,day]=d.split('-'); return `${day}/${m}/${y}`; }
+function workDays(s,e){ let c=0,cur=new Date(s); const end=new Date(e); while(cur<=end){if(cur.getDay()!==0&&cur.getDay()!==6)c++; cur.setDate(cur.getDate()+1);} return c; }
+function leaveColor(t){ return({'Vacation':'#1a56db','Sick Leave':'#dc2626','Personal':'#7c3aed','Emergency':'#d97706','Maternity/Paternity':'#059669'})[t]||'#64748b'; }
+
+function showToast(msg, icon='✅'){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  document.getElementById('toastIcon').textContent=icon;
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000);
+}
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function openSidebar(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('show'); }
+function closeSidebar(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show'); }
+
+// ════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════
+function selectRole(role,btn){
+  selectedRole=role;
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+  document.getElementById('loginEmail').value   = role==='employee'?'john.doe@company.com':'sarah.manager@company.com';
+  document.getElementById('loginPassword').value= role==='employee'?'password123':'manager123';
+}
+function doLogin(){
+  let ok=true;
+  document.querySelectorAll('.form-error').forEach(e=>e.style.display='none');
+  const email=document.getElementById('loginEmail').value.trim();
+  const pass =document.getElementById('loginPassword').value;
+  if(!email||!email.includes('@')){ document.getElementById('emailErr').style.display='block'; ok=false; }
+  if(!pass){                        document.getElementById('passErr').style.display='block'; ok=false; }
+  if(!ok) return;
+  const u=USERS[email];
+  if(!u||u.password!==pass){ showToast('Invalid credentials','❌'); return; }
+  currentUser={email,...u};
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('sidebarAvatar').textContent=currentUser.avatar;
+  document.getElementById('sidebarName').textContent=currentUser.name;
+  document.getElementById('sidebarRole').textContent=currentUser.role==='manager'?'Manager':'Employee';
+  document.getElementById('sidebarBadge').textContent=currentUser.role==='manager'?'MGR':'EMP';
+  if(currentUser.role==='manager') document.getElementById('navApprovals').style.display='flex';
+  updatePendingBadge(); renderDashboard(); renderCalendar(); renderBalances();
+}
+function doLogout(){
+  currentUser=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('loginPage').style.display='flex';
+}
+
+// ════════════════════════════════════════════
+// NAV
+// ════════════════════════════════════════════
+const pageTitles={dashboard:'Dashboard',myLeaves:'My Leaves',applyLeave:'Apply Leave',calendar:'Leave Calendar',balances:'Leave Balances',approvals:'Approvals'};
+function navTo(page, sidebarEl){
+  // Highlight sidebar item
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(sidebarEl) sidebarEl.classList.add('active');
+  // Show page
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('pageTitle').textContent=pageTitles[page]||page;
+  closeSidebar();
+  // Render
+  if(page==='myLeaves')   renderMyLeaves();
+  if(page==='approvals')  renderApprovals();
+  if(page==='calendar')   renderCalendar();
+  if(page==='balances')   renderBalances();
+  if(page==='dashboard')  renderDashboard();
+}
+function bnActive(id){
+  document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ════════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════════
+function renderDashboard(){
+  const myL = currentUser.role==='employee' ? leaveRequests.filter(l=>l.empId===1) : leaveRequests;
+  document.getElementById('statTotal').textContent    = myL.length;
+  document.getElementById('statApproved').textContent = myL.filter(l=>l.status==='Approved').length;
+  document.getElementById('statPending').textContent  = myL.filter(l=>l.status==='Pending').length;
+  document.getElementById('statBalance').textContent  = LEAVE_BALANCES['Vacation'].total - LEAVE_BALANCES['Vacation'].used;
+  // Recent table
+  const recent=[...myL].reverse().slice(0,5);
+  document.getElementById('dashRecentBody').innerHTML = recent.length
+    ? recent.map(l=>`<tr>
+        <td><span class="leave-type"><span class="leave-dot" style="background:${leaveColor(l.type)}"></span>${l.type}</span></td>
+        <td style="font-size:13px;">${fmtDate(l.start)} – ${fmtDate(l.end)}</td>
+        <td><span class="badge badge-${l.status.toLowerCase()}">${l.status}</span></td>
+      </tr>`).join('')
+    : `<tr><td colspan="3"><div class="empty-state"><div class="empty-icon">📋</div><p>No requests yet</p></div></td></tr>`;
+  // Activity
+  const acts=[
+    {icon:'📝',bg:'#e8f0fe',text:'<b>John Doe</b> applied for Vacation leave',   time:'2 hours ago'},
+    {icon:'✅',bg:'#e6f4ed',text:'<b>Sarah Chen</b> approved Sick Leave',          time:'Yesterday'},
+    {icon:'❌',bg:'#fdecea',text:"<b>Sarah Chen</b> rejected David's vacation",   time:'3 days ago'},
+    {icon:'📋',bg:'#fef3cd',text:'<b>Alice Smith</b> applied for Personal leave', time:'3 days ago'},
+  ];
+  document.getElementById('activityFeed').innerHTML=acts.map(a=>`
+    <div class="activity-item">
+      <div class="activity-icon" style="background:${a.bg}">${a.icon}</div>
+      <div class="activity-content">
+        <div class="activity-text">${a.text}</div>
+        <div class="activity-time">${a.time}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════════
+// MY LEAVES
+// ════════════════════════════════════════════
+function renderMyLeaves(){
+  let data=leaveRequests.filter(l=>l.empId===1);
+  if(filterStatus!=='all') data=data.filter(l=>l.status===filterStatus);
+  document.getElementById('myLeavesBody').innerHTML = data.length
+    ? data.map(l=>`<tr>
+        <td><span class="leave-type"><span class="leave-dot" style="background:${leaveColor(l.type)}"></span>${l.type}</span></td>
+        <td class="hide-mobile">${fmtDate(l.start)}</td>
+        <td class="hide-mobile">${fmtDate(l.end)}</td>
+        <td>${l.days}</td>
+        <td class="hide-mobile" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${l.reason}">${l.reason}</td>
+        <td><span class="badge badge-${l.status.toLowerCase()}">${l.status}</span></td>
+        <td>${l.status==='Pending'?`<button class="btn btn-sm" style="color:var(--danger);border:1.5px solid var(--danger);background:transparent;padding:4px 10px;font-size:12px;" onclick="cancelLeave(${l.id})">Cancel</button>`:'—'}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><p>No requests found</p></div></td></tr>`;
+}
+function filterLeaves(status,btn){
+  filterStatus=status;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active')); btn.classList.add('active');
+  renderMyLeaves();
+}
+function cancelLeave(id){
+  if(!confirm('Cancel this leave request?')) return;
+  leaveRequests=leaveRequests.filter(l=>l.id!==id);
+  renderMyLeaves(); updatePendingBadge(); showToast('Request cancelled','🗑️');
+}
+
+// ════════════════════════════════════════════
+// APPLY LEAVE
+// ════════════════════════════════════════════
+function previewDays(){
+  const s=document.getElementById('startDate').value, e=document.getElementById('endDate').value;
+  if(s&&e&&e>=s){ document.getElementById('daysPreview').style.display='block'; document.getElementById('daysCount').textContent=workDays(s,e); }
+  else document.getElementById('daysPreview').style.display='none';
+}
+function resetForm(){
+  ['leaveType','startDate','endDate','leaveReason'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('daysPreview').style.display='none';
+  document.querySelectorAll('.form-error').forEach(e=>e.style.display='none');
+}
+function submitLeave(){
+  let ok=true;
+  document.querySelectorAll('.form-error').forEach(e=>e.style.display='none');
+  const type  =document.getElementById('leaveType').value;
+  const start =document.getElementById('startDate').value;
+  const end   =document.getElementById('endDate').value;
+  const reason=document.getElementById('leaveReason').value.trim();
+  if(!type)              { document.getElementById('typeErr').style.display='block';   ok=false; }
+  if(!start)             { document.getElementById('startErr').style.display='block';  ok=false; }
+  if(!end||end<start)    { document.getElementById('endErr').style.display='block';    ok=false; }
+  if(!reason)            { document.getElementById('reasonErr').style.display='block'; ok=false; }
+  if(!ok) return;
+  leaveRequests.push({id:nextId++,empId:1,empName:currentUser.name,type,start,end,days:workDays(start,end),reason,status:'Pending',comment:'',created:new Date().toISOString().split('T')[0]});
+  showToast('Leave request submitted!','📝');
+  resetForm(); updatePendingBadge();
+  navTo('myLeaves',null); bnActive('bn-myLeaves');
+}
+
+// ════════════════════════════════════════════
+// CALENDAR
+// ════════════════════════════════════════════
+function renderCalendar(){
+  const year=calendarDate.getFullYear(), month=calendarDate.getMonth();
+  document.getElementById('calMonthLabel').textContent=calendarDate.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const firstDay=new Date(year,month,1).getDay();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const today=new Date();
+  const approvedSet=new Set(), pendingSet=new Set();
+  leaveRequests.forEach(l=>{
+    let cur=new Date(l.start);
+    while(cur<=new Date(l.end)){
+      const k=cur.toISOString().split('T')[0];
+      if(l.status==='Approved') approvedSet.add(k);
+      else if(l.status==='Pending') pendingSet.add(k);
+      cur.setDate(cur.getDate()+1);
+    }
+  });
+  const days=['Su','Mo','Tu','We','Th','Fr','Sa'];
+  let html=days.map(d=>`<div class="cal-header">${d}</div>`).join('');
+  for(let i=0;i<firstDay;i++) html+=`<div class="cal-day other-month"></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=today.getFullYear()===year&&today.getMonth()===month&&today.getDate()===d;
+    const isApproved=approvedSet.has(ds), isPending=pendingSet.has(ds);
+    let cls='cal-day';
+    if(isToday) cls+=' today';
+    else if(isApproved) cls+=' on-leave approved';
+    else if(isPending) cls+=' on-leave pending';
+    const dot=(isApproved||isPending)&&!isToday?`<span class="dot" style="background:${isApproved?'var(--success)':'var(--warning)'}"></span>`:'';
+    html+=`<div class="${cls}">${d}${dot}</div>`;
+  }
+  document.getElementById('calGrid').innerHTML=html;
+  // Team list
+  const tl=document.getElementById('teamLeaveList');
+  const ml=leaveRequests.filter(l=>{const s=new Date(l.start),e=new Date(l.end); return(s.getFullYear()===year&&s.getMonth()===month)||(e.getFullYear()===year&&e.getMonth()===month);});
+  tl.innerHTML=ml.length
+    ? ml.map(l=>{const emp=EMPLOYEES.find(e=>e.id===l.empId)||{avatar:'?',color:'#64748b'}; return`<div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);">
+        <div class="avatar-sm" style="background:${emp.color};width:32px;height:32px;font-size:11px;">${emp.avatar}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;font-weight:500;">${l.empName}</div>
+          <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${l.type} · ${fmtDate(l.start)} – ${fmtDate(l.end)}</div>
+        </div>
+        <span class="badge badge-${l.status.toLowerCase()}">${l.status}</span>
+      </div>`;}).join('')
+    : `<div class="empty-state" style="padding:30px 16px;"><div class="empty-icon">🌴</div><p>No leaves this month</p></div>`;
+}
+function changeMonth(dir){ calendarDate.setMonth(calendarDate.getMonth()+dir); renderCalendar(); }
+
+// ════════════════════════════════════════════
+// BALANCES
+// ════════════════════════════════════════════
+function renderBalances(){
+  const colors={'Vacation':'#1a56db','Sick Leave':'#dc2626','Personal':'#7c3aed','Emergency':'#d97706'};
+  document.getElementById('balancesBody').innerHTML=Object.entries(LEAVE_BALANCES).map(([type,bal])=>{
+    const rem=bal.total-bal.used, pct=Math.round((rem/bal.total)*100);
+    return`<div class="balance-item">
+      <div class="balance-header">
+        <div class="balance-name">${type}</div>
+        <div class="balance-nums"><b>${rem}</b> / ${bal.total} days</div>
+      </div>
+      <div class="balance-bar"><div class="balance-fill" style="width:${pct}%;background:${colors[type]||'#64748b'}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════
+// APPROVALS
+// ════════════════════════════════════════════
+function renderApprovals(){
+  const pending=leaveRequests.filter(l=>l.status==='Pending');
+  document.getElementById('approvalCount').textContent=`${pending.length} pending`;
+  document.getElementById('approvalsBody').innerHTML=pending.length
+    ? pending.map(l=>{const emp=EMPLOYEES.find(e=>e.id===l.empId)||{avatar:'?',color:'#64748b'}; return`<tr>
+        <td><div class="emp-cell"><div class="avatar-sm" style="background:${emp.color}">${emp.avatar}</div>${l.empName}</div></td>
+        <td><span class="leave-type"><span class="leave-dot" style="background:${leaveColor(l.type)}"></span>${l.type}</span></td>
+        <td style="font-size:13px;">${fmtDate(l.start)} – ${fmtDate(l.end)}</td>
+        <td class="hide-mobile">${l.days}d</td>
+        <td class="hide-mobile" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${l.reason}">${l.reason}</td>
+        <td><button class="btn btn-success btn-sm" onclick="openAction(${l.id})">Review</button></td>
+      </tr>`;}).join('')
+    : `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🎉</div><p>No pending approvals</p></div></td></tr>`;
+  document.getElementById('allRequestsBody').innerHTML=leaveRequests.map(l=>{
+    const emp=EMPLOYEES.find(e=>e.id===l.empId)||{avatar:'?',color:'#64748b'};
+    return`<tr>
+      <td><div class="emp-cell"><div class="avatar-sm" style="background:${emp.color};width:26px;height:26px;font-size:10px;">${emp.avatar}</div>${l.empName}</div></td>
+      <td>${l.type}</td>
+      <td class="hide-mobile">${fmtDate(l.start)}</td>
+      <td class="hide-mobile">${fmtDate(l.end)}</td>
+      <td><span class="badge badge-${l.status.toLowerCase()}">${l.status}</span></td>
+      <td class="hide-mobile" style="font-size:13px;color:var(--muted);">${l.comment||'—'}</td>
+    </tr>`;}).join('');
+}
+function openAction(id){
+  pendingActionId=id;
+  const l=leaveRequests.find(r=>r.id===id);
+  document.getElementById('actionModalInfo').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:14px;">
+      <div><span style="color:var(--muted);">Employee:</span> <b>${l.empName}</b></div>
+      <div><span style="color:var(--muted);">Type:</span> <b>${l.type}</b></div>
+      <div><span style="color:var(--muted);">From:</span> <b>${fmtDate(l.start)}</b></div>
+      <div><span style="color:var(--muted);">To:</span> <b>${fmtDate(l.end)}</b></div>
+      <div style="grid-column:span 2"><span style="color:var(--muted);">Reason:</span> ${l.reason}</div>
+    </div>`;
+  document.getElementById('managerComment').value='';
+  openModal('actionModal');
+}
+function processAction(status){
+  const comment=document.getElementById('managerComment').value.trim();
+  const idx=leaveRequests.findIndex(l=>l.id===pendingActionId);
+  if(idx>=0){
+    leaveRequests[idx].status=status; leaveRequests[idx].comment=comment;
+    if(status==='Approved'&&LEAVE_BALANCES[leaveRequests[idx].type]) LEAVE_BALANCES[leaveRequests[idx].type].used+=leaveRequests[idx].days;
+  }
+  closeModal('actionModal');
+  showToast(`Request ${status.toLowerCase()}!`, status==='Approved'?'✅':'❌');
+  updatePendingBadge(); renderApprovals();
+}
+function updatePendingBadge(){
+  const n=leaveRequests.filter(l=>l.status==='Pending').length;
+  const s=document.getElementById('pendingBadgeSide');
+  s.textContent=n||''; s.style.display=n?'inline':'none';
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded',()=>{
+  const today=new Date().toISOString().split('T')[0];
+  const sd=document.getElementById('startDate');
+  const ed=document.getElementById('endDate');
+  if(sd){ sd.min=today; sd.addEventListener('change',previewDays); }
+  if(ed){ ed.min=today; ed.addEventListener('change',previewDays); }
+
+  // Close sidebar on resize to desktop
+  window.addEventListener('resize',()=>{ if(window.innerWidth>768) closeSidebar(); });
+});
+</script>
+</body>
+</html>
